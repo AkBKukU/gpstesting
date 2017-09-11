@@ -1,0 +1,105 @@
+#include <stdio.h>
+#include <fcntl.h>  /* File Control Definitions		  */
+#include <termios.h>/* POSIX Terminal Control Definitions*/
+#include <unistd.h> /* UNIX Standard Definitions		 */
+#include <errno.h>  /* ERROR Number Definitions		  */
+#include <iostream>
+#include <cstring>
+
+
+int main(int argc, char** args )
+{
+	int fd;
+	fd = open("/dev/ttyUSB0",O_RDWR | O_NOCTTY);
+	if( fd == 1)
+		printf("\n  Error! in Opening ttyUSB0\n");
+	else
+		printf("\n  ttyUSB0 Opened Successfully\n");
+
+	struct termios SerialPortSettings;
+	
+	tcgetattr(fd, &SerialPortSettings);
+
+	cfsetospeed(&SerialPortSettings,B9600);
+	SerialPortSettings.c_cflag |=  PARENB; /*SET   Parity Bit PARENB*/
+	SerialPortSettings.c_cflag &= ~CSTOPB; //Stop bits = 1 
+
+
+
+	SerialPortSettings.c_cflag &= ~CSIZE; /* Clears the Mask	   */
+	SerialPortSettings.c_cflag |=  CS7;   /* Set the data bits = 8 */
+
+
+	SerialPortSettings.c_cflag &= ~CRTSCTS;	   /* No Hardware flow Control						 */
+	SerialPortSettings.c_cflag |= CREAD | CLOCAL; /* Enable receiver,Ignore Modem Control lines	   */ 
+	
+	
+	SerialPortSettings.c_iflag &= ~(IXON | IXOFF | IXANY);		  /* Disable XON/XOFF flow control both i/p and o/p */
+	SerialPortSettings.c_iflag &= ~(ICANON | ECHO | ECHOE | ISIG);  /* Non Cannonical mode							*/
+
+	SerialPortSettings.c_oflag &= ~OPOST;/*No Output Processing*/
+	
+	/* Setting Time outs */
+	SerialPortSettings.c_cc[VMIN] = 10; /* Read at least 10 characters */
+	SerialPortSettings.c_cc[VTIME] = 0; /* Wait indefinetly   */
+
+
+	if((tcsetattr(fd,TCSANOW,&SerialPortSettings)) != 0) /* Set the attributes to the termios structure*/
+		printf("\n  ERROR ! in Setting attributes");
+	else
+				printf("\n  BaudRate = 9600 \n  StopBits = 1 \n  Parity   = none");
+		
+		/*------------------------------- Read data from serial port -----------------------------*/
+
+	tcflush(fd, TCIFLUSH);   /* Discards old data in the rx buffer			*/
+	int bytes_to_read = 2000;
+	char read_buffer[bytes_to_read];   /* Buffer to store the data received			  */
+	int  bytes_read = 0;	/* Number of bytes read by the read() system call */
+	int i = 0;
+
+	bytes_read = read(fd,&read_buffer,bytes_to_read); /* Read the data				   */
+		
+	printf("\n\n  Bytes Rxed -%d", bytes_read); /* Print the number of bytes read */
+	printf("\n\n  ");
+
+	for(i=0;i<bytes_read;i++)	 /*printing only the received characters*/
+		printf("%c",read_buffer[i]);
+
+	printf("\n +----------------------------------+\n\n\n");
+	printf("Initiating Loop...");
+	while("false")
+	{
+		/*
+		std::memset(read_buffer,0,bytes_to_read);
+		bytes_read = 0;
+		bytes_read = read(fd,&read_buffer,bytes_to_read); // Read the data   
+		for(i=0;i<bytes_read;i++)
+			printf("%c",read_buffer[i]);
+			*/
+
+
+
+
+		char buffer[100];
+		ssize_t length = read(fd, &buffer, sizeof(buffer));
+		if (length == -1)
+		{
+			printf("Error reading from serial port\n");
+			break;
+		}
+		else if (length == 0)
+		{
+			printf("No more data\n");
+			break;
+		}
+		else
+		{
+			buffer[length] = '\0';
+			printf("%s", buffer);
+		}	
+
+
+	}
+	close(fd); /* Close the serial port */
+	return 0;
+}
