@@ -118,6 +118,7 @@ int main(int argc, char** args )
 			}
 		}
 	
+		usleep(1000);
 	}
 
 	return 0;
